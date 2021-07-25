@@ -30,7 +30,7 @@ function getCourses() {
     } while (options.pageToken);
     //Filtra por cursos ativos do usuário Educacional Blueedtech
     return listaClassroomCompleta = listaClassroomCompleta.filter((classroom) => {
-        if (classroom.ownerId === "your count id" && classroom.courseState === "ACTIVE") {
+        if (classroom.ownerId === "107558995070093037568" && classroom.courseState === "ACTIVE") {
             return true;
         } else {
             return false;

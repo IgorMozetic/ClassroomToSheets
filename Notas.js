@@ -1,45 +1,70 @@
 function importarNotaAlunos() {
-    let courseList = getCourses();
-    let activitiesList = courseList.map((course) => {
-        let activities = getCoursesWork(course.id);
-        activities.forEach((activity) => {
-            let atividadesEnviadas = getStudentSubmition(activity.id, course.id)
-            console.log(atividadesEnviadas)
-        })
+    let sheet = googleSheetConnectionNotas()
+    sheet.clear()
+    const header = ["ID Curso", "Nome do curso", "Data de criação atividade", "Data ultima atualizacao de envio atividade",
+        "Nome Externo", "ID aluno", "Nome do aluno", "Nota", "Nome Interno"];
+    sendDataToSheet(sheet, header)
+    let courses = getCourses()
+    courses.map((course) => {
+        let atividadesCurso = getCoursesWork(course.id);
+        let x = 1
+        atividadesCurso.forEach((atividade,) => {
+            let notas = getStudentGrade(atividade.id, course.id)
+            notas.forEach((nota) => {
+                let dados = [course.id, course.name, atividade.creationTime, nota.dataEnvio, atividade.title, nota.userId, nota.nome, nota.nota, `P${x}`];
+                sendDataToSheet(sheet, dados)
+            });
+            x += 1
+        });
     });
-
-    // console.log(filterUndefinedElement(activitiesList));
 }
-
 
 
 function getCoursesWork(courseID) {
-    let listaAtividades = Classroom.Courses.CourseWork.list(courseID).courseWork;
-    return listaAtividades;
+    let listaAtividadesCompleta = [],
+        options = {};
+    do {
+        let listaAtividadesRequest = Classroom.Courses.CourseWork.list(courseID, options);
+        Array.prototype.push.apply(listaAtividadesCompleta, listaAtividadesRequest.courseWork)
+        options.pageToken = listaAtividadesRequest.nextPageToken;
+    } while (options.pageToken);
+    return listaAtividadesCompleta.sort((a, b) => {
+        return sortAtividadeArr(a, b);
+    });
 }
 
-function filterUndefinedElement(arr) {
-    let filteredArr;
-    if (arr) {
-        filteredArr = arr.filter((element) => {
-            if (element) {
-                return true;
-            } else {
-                return false;
-            }
-        });
-        return filteredArr;
-    }
+function filterUndefined(element) {
+    if (element) return true;
+    return false;
 }
 
-function getStudentSubmition(activityID, courseID) {
-    let atividadesEnviadas = Classroom.Courses.CourseWork.StudentSubmissions.list(courseID, activityID);
-    return atividadesEnviadas.studentSubmissions.map((atividadeEnviada) => {
-        let data = (!atividadeEnviada.updateTime ? atividadeEnviada.creationTime : atividadeEnviada.updateTime);
-        let cursoId = atividadeEnviada.courseId;
-        let userId = atividadeEnviada.userId;
-        let nota = atividadeEnviada.assignedGrade;
-        let notaAluno = { data, cursoId, userId, nota }
-        return notaAluno;
-    })
+function sortAtividadeArr({ creationTime: data1 } = a, { creationTime: data2 } = b) {
+    return new Date(data1) - new Date(data2);
+}
+
+function getSubmitions(courseId, courseWorkId) {
+    let listaSubmitionsCompleta = [],
+        options = {};
+    do {
+        let listaSubmitionsRequest = Classroom.Courses.CourseWork.StudentSubmissions.list(courseId, courseWorkId, options);
+        Array.prototype.push.apply(listaSubmitionsCompleta, listaSubmitionsRequest.studentSubmissions);
+        options.pageToken = listaSubmitionsRequest.nextPageToken;
+    } while (options.pageToken);
+    return listaSubmitionsCompleta;
+}
+
+function getStudentGrade(atividadeCurso, cursoId) {
+    let submissions = getSubmitions(cursoId, atividadeCurso);
+    if (submissions) return submissions.map((submission) => {
+        let data = submission.updateTime ? submission.updateTime : submission.createdTime
+        let nomeAluno = Classroom.UserProfiles.get(submission.userId)
+        let nota = submission.assignedGrade ? submission.assignedGrade : ""
+        return { nota: submission.assignedGrade, dataEnvio: data, nome: nomeAluno.name.fullName, userId: nomeAluno.id }
+    }).filter((element) => { return filterUndefined(element) });
+}
+
+function googleSheetConnectionNotas() {
+    var sheetActive = SpreadsheetApp.openById("1s0kHkj9F269N3X3ii0u0JOk--DMhGmqbsrJvzArSXqQ");
+    var sheet = sheetActive.getSheetByName("Notas");
+    return sheet;
 }
