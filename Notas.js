@@ -11,7 +11,15 @@ function importarNotaAlunos() {
         atividadesCurso.forEach((atividade,) => {
             let notas = getStudentGrade(atividade.id, course.id)
             notas.forEach((nota) => {
-                let dados = [course.id, course.name, atividade.creationTime, nota.dataEnvio, atividade.title, nota.userId, nota.nome, nota.nota, `P${x}`];
+                let dataCriacao = new Date(atividade.creationTime).toLocaleDateString("pt-BR");
+                let dataEnvio = "";
+                if (nota.dataEnvio) {
+                    dataEnvio = new Date(nota.dataEnvio).toLocaleDateString("pt-BR");
+                }
+                else {
+                    dataEnvio = nota.dataEnvio;
+                }
+                let dados = [course.id, course.name, dataCriacao, dataEnvio, atividade.title, nota.userId, nota.nome, nota.nota, `P${x}`];
                 sendDataToSheet(sheet, dados)
             });
             x += 1
